@@ -1,0 +1,179 @@
+
+\documentclass{article} % For LaTeX2e
+\usepackage{colm2025_conference}
+
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage[table]{xcolor}
+
+\usepackage{lineno}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage{caption}
+\usepackage{xspace}
+
+\definecolor{darkblue}{rgb}{0, 0, 0.5}
+\hypersetup{colorlinks=true, citecolor=darkblue, linkcolor=darkblue, urlcolor=darkblue}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{colortbl}
+\usepackage{amsmath}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{mathtools}
+\usepackage{siunitx}    
+\usepackage{makecell,threeparttable}
+\crefname{section}{Section}{Sections}
+\Crefname{section}{Section}{Sections}
+\crefrangelabelformat{section}{#3#1--#4#2}
+\definecolor{richpurple}{RGB}{75,46,131}
+\newcommand{\purplecomic}[1]{%
+  {\color{richpurple}\selectfont #1}%
+}
+
+\newcommand{\blackcomic}[1]{%
+  {\color{black}\selectfont #1}%
+}
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\AgentEvolver}{\texttt{AgentEvolver}\xspace}
+\newcommand\eat[1]{}
+\newcommand{\placeholder}[1]{\texttt{<#1>}}
+
+% % \title{Formatting Instructions for COLM 2025 \\ Conference Submissions}
+% \title{
+%   % \raisebox{-.29\height}{\includegraphics[width=0.30\textwidth]{figs/ba-title.pdf}}: 
+%   \raisebox{-3.2 mm}{\includegraphics[width=0.04\textwidth]{figs/title-logo.pdf}}: 
+%   An Efficient Self-Evolving Agent System
+% }
+
+
+\title{
+  \raisebox{-2.5 mm}{\includegraphics[width=0.055\textwidth]{figs/title_logo_2.pdf}}\hspace{0.2em}\purplecomic{\textbf{\AgentEvolver}}: 
+  \blackcomic{Towards Efficient Self-Evolving Agent System}
+}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \colmfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{
+Yunpeng Zhai\footnotemark[1],
+~Shuchang Tao\footnotemark[1], 
+~Cheng Chen\footnotemark[1], 
+~Anni Zou\footnotemark[1], 
+~Ziqian Chen\footnotemark[1], 
+~Qingxu Fu\footnotemark[1], \\
+~Shinji Mai\footnotemark[1], 
+~Li Yu, 
+~Jiaji Deng, 
+~Zouying Cao, 
+~Zhaoyang Liu\footnotemark[2], 
+~Bolin Ding\footnotemark[2], 
+~Jingren Zhou \\
+[1em]
+Tongyi Lab\includegraphics[height=12pt]{./figs/logo.pdf}, Alibaba Group \\
+[1em]
+\texttt{\{zhaiyunpeng.zyp, taoshuchang.tsc, chengchen, zouanni.zan, eric.czq, fuqingxu.fqx, jingmu.lzy, bolin.ding\}@alibaba-inc.com}
+}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+
+\begin{document}
+
+% \ifcolmsubmission
+% \linenumbers
+% \fi
+
+\maketitle
+
+
+\begingroup
+  \renewcommand\thefootnote{}%
+  \footnotetext{%
+    \begin{tabular}{@{}l@{\hspace{0.4em}}l@{}}
+      $^{*}$ & Equal contribution.\\
+      $^{\dagger}$ & Corresponding authors.
+    \end{tabular}%
+  }%
+\endgroup
+
+
+
+
+
+\begin{abstract}
+
+Autonomous agents powered by large language models (LLMs) have the potential to significantly enhance human productivity by reasoning, using tools, and executing complex tasks in diverse environments. However, current approaches to developing such agents remain costly and inefficient, as they typically require manually constructed task datasets and reinforcement learning (RL) pipelines with extensive random exploration. These limitations lead to prohibitively high data-construction costs, low exploration efficiency, and poor sample utilization. To address these challenges, we present \textbf{\AgentEvolver}, a self-evolving agent system that leverages the semantic understanding and reasoning capabilities of LLMs to drive autonomous agent learning. \AgentEvolver introduces three synergistic mechanisms: (i) \texttt{self-questioning}, which enables curiosity-driven task generation in novel environments, reducing dependence on handcrafted datasets; (ii) \texttt{self-navigating}, which improves exploration efficiency through experience reuse and hybrid policy guidance; and (iii) \texttt{self-attributing}, which enhances sample efficiency by assigning differentiated rewards to trajectory states and actions based on their contribution. 
+By integrating these mechanisms into a unified framework, \AgentEvolver enables scalable, cost-effective, and continual improvement of agent capabilities. Preliminary experiments indicate that \AgentEvolver achieves more efficient exploration, better sample utilization, and faster adaptation compared to traditional RL-based baselines. 
+
+
+\end{abstract}
+
+\begin{figure}[htbp]
+  \centering
+  \vspace{0em}
+  \includegraphics[width=0.95\textwidth]{figs/plot_comparison.pdf}
+  \captionsetup{width=0.95\textwidth}
+  \caption{Performance comparison on the AppWorld and BFCL-v3 benchmarks. \AgentEvolver achieves superior results while using substantially fewer parameters than larger baseline models.}
+  \label{fig:plot_comparison}
+\end{figure}
+
+\newpage
+
+\input{sections/intro.tex}
+
+\input{sections/formulation.tex}
+
+\input{sections/self_questioning.tex}
+
+\input{sections/self_navigating.tex}
+
+\input{sections/self_attributing.tex}
+
+
+\input{sections/infra.tex}
+
+
+\input{sections/experiments}
+
+
+\input{sections/conclusion}
+
+% \section*{Author Contributions}
+% If you'd like to, you may include  a section for author contributions as is done
+% in many journals. This is optional and at the discretion of the authors.
+
+% \section*{Acknowledgments}
+% Use unnumbered first level headings for the acknowledgments. All
+% acknowledgments, including those to funding agencies, go at the end of the paper.
+
+% \section*{Ethics Statement}
+% Authors can add an optional ethics statement to the paper. 
+% For papers that touch on ethical issues, this section will be evaluated as part of the review process. The ethics statement should come at the end of the paper. It does not count toward the page limit, but should not be more than 1 page. 
+
+% \input{sections/appendix}
+
+\bibliography{colm2025_conference}
+\bibliographystyle{colm2025_conference}
+
+% \appendix
+% \section{Appendix}
+% You may include other additional sections here.
+
+\end{document}

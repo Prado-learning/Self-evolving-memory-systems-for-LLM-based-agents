@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentEvolver Explained</title>
+  <style>
+    :root{
+      --bg:#f3f6ff;
+      --card:#ffffff;
+      --ink:#0f172a;
+      --muted:#475569;
+      --line:#d8dcee;
+      --accent:#2563eb;     /* blue */
+      --accent2:#0e7490;    /* teal */
+      --warn:#b45309;
+      --shadow:0 14px 34px rgba(15,23,42,.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+    *{ box-sizing:border-box; }
+    html{ scroll-behavior:smooth; }
+    body{
+      margin:0;
+      color:var(--ink);
+      background:
+        radial-gradient(900px 520px at 12% -10%, rgba(37,99,235,.14) 0%, transparent 60%),
+        radial-gradient(900px 520px at 100% 0%, rgba(14,116,144,.12) 0%, transparent 60%),
+        var(--bg);
+      font-family: var(--sans);
+      line-height:1.65;
+    }
+    a{ color:inherit; text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    header{ padding:42px 6vw 18px; }
+    .badge{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:6px 12px;
+      border-radius:999px;
+      background: rgba(37,99,235,0.10);
+      border:1px solid rgba(37,99,235,0.22);
+      color:#1e40af;
+      font-size:12px;
+      font-weight:900;
+    }
+    h1{
+      margin:12px 0 8px;
+      font-size:clamp(28px,4.2vw,46px);
+      letter-spacing:.2px;
+      line-height:1.15;
+    }
+    .subtitle{
+      max-width:980px;
+      color:var(--muted);
+      font-size:clamp(14px,2.1vw,18px);
+      margin:0 0 14px;
+    }
+    .meta{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+      gap:12px;
+      margin-top:14px;
+    }
+    .tile{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px 14px;
+      box-shadow:var(--shadow);
+    }
+    .tile .k{ font-size:12px; color:var(--muted); }
+    .tile .v{ margin-top:6px; font-weight:900; }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 320px minmax(0,1fr);
+      gap:18px;
+      padding: 10px 6vw 70px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .layout{ grid-template-columns: 1fr; }
+    }
+    nav.toc{
+      position:sticky;
+      top:14px;
+      background:rgba(255,255,255,.70);
+      backdrop-filter: blur(8px);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px 14px;
+      box-shadow:var(--shadow);
+      max-height: calc(100vh - 28px);
+      overflow:auto;
+    }
+    nav.toc a{
+      display:block;
+      padding:8px 10px;
+      border-radius:10px;
+      color:var(--muted);
+      border:1px solid transparent;
+      text-decoration:none;
+    }
+    nav.toc a:hover{
+      background:rgba(37,99,235,.08);
+      border-color: rgba(37,99,235,.18);
+      color: var(--ink);
+    }
+    .toc .sub{
+      margin-left:10px;
+      border-left: 2px solid rgba(37,99,235,.18);
+      padding-left:10px;
+    }
+    main{ display:grid; gap:18px; min-width:0; }
+    section.card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:18px 18px;
+      box-shadow:var(--shadow);
+    }
+    section.card h2{ margin:4px 0 10px; font-size:20px; }
+    section.card h3{ margin:14px 0 6px; font-size:16px; }
+    p{ margin: 8px 0; }
+    ul{ margin:8px 0; padding-left:18px; color:var(--muted); }
+    li{ margin:4px 0; }
+    blockquote{
+      margin:10px 0;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(37,99,235,.22);
+      background: rgba(37,99,235,.06);
+      color:#1e3a8a;
+    }
+    blockquote cite{ display:block; margin-top:6px; font-style:normal; color: rgba(15,23,42,.70); font-size:12px; }
+    .callout{
+      border-radius:14px;
+      border:1px solid rgba(14,116,144,.22);
+      background: rgba(14,116,144,.06);
+      padding:12px 14px;
+      color:#0f3e4d;
+    }
+    .callout.warn{
+      border-color: rgba(180,83,9,.24);
+      background: rgba(180,83,9,.08);
+      color:#6b2a0a;
+    }
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+    }
+    .grid2{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap:12px;
+      align-items:start;
+    }
+    .mini{
+      background: rgba(255,255,255,.70);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px 12px;
+    }
+    code{ font-family: var(--mono); font-size: 12px; }
+    pre{
+      margin:10px 0;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:#fff;
+      overflow:auto;
+      font-family: var(--mono);
+      font-size:12px;
+      line-height:1.5;
+    }
+    .foot{ color:var(--muted); font-size:12px; }
+
+    .figure-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap:14px;
+      align-items:start;
+      margin-top:10px;
+    }
+    figure.paper-figure{
+      margin:0;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px 12px;
+      overflow:hidden;
+    }
+    figure.paper-figure img{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.06);
+      background:#fff;
+    }
+    figure.paper-figure figcaption{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+    figure.paper-figure figcaption b{ color: var(--ink); }
+    figure.paper-figure .links{
+      margin-top:8px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      font-size:12px;
+    }
+    figure.paper-figure .links a{
+      color: var(--accent2);
+      text-decoration:none;
+      border-bottom: 1px dashed rgba(14,116,144,.35);
+    }
+    figure.paper-figure .links a:hover{ text-decoration:none; border-bottom-style: solid; }
+
+    details.detail{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background: rgba(255,255,255,.70);
+      padding:12px 12px;
+      margin-top:12px;
+      box-shadow: 0 10px 22px rgba(15,23,42,.06);
+    }
+    details.detail[open]{ background:#fff; }
+    details.detail summary{
+      cursor:pointer;
+      font-weight:900;
+      color: var(--ink);
+      list-style:none;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    details.detail summary::-webkit-details-marker{ display:none; }
+    .detail .hint{ color:var(--muted); font-size:12px; font-weight:800; }
+
+    /* Collapsible TOC sidebar (collapse whole left rail; no space when collapsed) */
+    body{ --toc-w: 320px; }
+    body.toc-collapsed{ --toc-w: 0px; }
+
+    .layout{ grid-template-columns: var(--toc-w) minmax(0,1fr); }
+    body.toc-collapsed .layout{ gap:0; }
+
+    body.toc-collapsed nav.toc{
+      padding:0;
+      border:0;
+      box-shadow:none;
+      background: transparent;
+      overflow:hidden;
+    }
+
+    nav.toc{ width:100%; }
+    nav.toc .toc-toggle{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.85);
+      color: var(--muted);
+      font-weight:900;
+      cursor:pointer;
+    }
+    nav.toc .toc-toggle:active{ transform: translateY(1px); }
+    nav.toc .toc-toggle-icon{
+      width:22px;
+      height:22px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#fff;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size:12px;
+      flex: 0 0 auto;
+    }
+    nav.toc .toc-toggle-icon::before{ content: '≡'; }
+    nav.toc .toc-toggle-label{ white-space:nowrap; }
+    nav.toc .toclinks{ margin-top:10px; }
+
+    /* Floating open button (only visible when collapsed) */
+    .toc-fab{
+      position: fixed;
+      left: 14px;
+      top: 14px;
+      z-index: 9999;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--muted);
+      cursor:pointer;
+    }
+    body.toc-collapsed .toc-fab{ display:flex; }
+
+    @media (max-width: 980px){
+      /* On small screens, keep single-column layout; collapsed = hide the TOC block */
+      body{ --toc-w: 1fr; }
+      body.toc-collapsed{ --toc-w: 1fr; }
+      .layout{ grid-template-columns: 1fr; }
+      nav.toc{ position:relative; top:auto; }
+      body.toc-collapsed nav.toc{ display:none; }
+      .toc-fab{ left: 12px; top: 12px; }
+    }
+  </style>
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <header>
+    <span class="badge">Paper · agentevolver</span>
+    <h1>AgentEvolver: Towards Efficient Self-Evolving Agent System</h1>
+    <p class="subtitle">中文讲义：把“任务生成、探索效率、信用分配”连成一个可自我进化闭环</p>
+    <div class="meta">
+      <div class="tile"><div class="k">你读完应该能做到</div><div class="v">能复述三模块并设计可复现实验</div></div>
+      <div class="tile"><div class="k">这篇核心贡献</div><div class="v">Self-questioning + Self-navigating + Self-attributing</div></div>
+      <div class="tile"><div class="k">与你方向的连接</div><div class="v">方向一可直接拿来做记忆策略与归因学习</div></div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <button class="toc-toggle" type="button" aria-label="Toggle table of contents">
+        <span class="toc-toggle-icon"></span>
+        <span class="toc-toggle-label">目录</span>
+      </button>
+      <div class="toclinks">
+        <a href="#quick">0. 快速定位：这篇讲什么</a>
+        <a href="#learn">0.5 阅读路线（高效/深刻）</a>
+        <a href="#prereq">1. 前置知识（只补必要的）</a>
+        <a href="#paper">2. 论文问题与贡献（带引用）</a>
+        <a href="#deep">2.5 逐句精读（保姆级拆解）</a>
+        <a href="#method">3. 方法详解（流程 + 关键机制）</a>
+        <a href="#exp">4. 实验怎么读（证据链）</a>
+        <a href="#takeaways">5. 研究启发</a>
+        <a href="#check">6. 自测题</a>
+        <a href="#figures">7. 图索引（回看入口）</a>
+        <a href="#refs">8. 引用与文件位置</a>
+      </div>
+    </nav>
+
+    <main>
+      <section id="quick" class="card">
+        <h2>0. 快速定位：这篇到底在讲什么？</h2>
+        <div class="callout">
+          这篇论文要解决的不是“怎么做一次 RL 训练”，而是“在新环境里，如何低成本持续变强”。
+          作者把问题拆成三段：先自动造任务（self-questioning），再用经验提高探索效率（self-navigating），最后用细粒度归因改善长期信用分配（self-attributing）。
+          证据集中在 AppWorld 与 BFCL v3 的增益，以及完整消融实验（见 <a href="#exp">第 4 节</a>）。
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div class="mini">
+            <span class="tag">一句话总结</span>
+            <p class="foot">用 LLM 自主驱动“造题-探索-归因”闭环，把原本昂贵低效的 agent RL 训练，改造成可持续进化系统。</p>
+          </div>
+          <div class="mini">
+            <span class="tag">你最容易卡住的点</span>
+            <p class="foot">很多读者会把它当成“又一个 GRPO 变体”。其实重点是三模块协同，尤其是任务分布构造和 credit assignment 的联动。</p>
+          </div>
+        </div>
+        <p class="foot">提示：公式渲染依赖 MathJax CDN；若离线打开页面，公式可能显示为 LaTeX 源码。</p>
+      </section>
+
+      <section id="learn" class="card">
+        <h2>0.5 阅读路线（高效且能深刻理解）</h2>
+        <div class="callout">
+          阅读索引（点击即跳转）：
+          <a href="#fig-overview">总览图</a> |
+          <a href="#fig-closed-loop-aid">闭环流程示意</a> |
+          <a href="#fig-self-questioning">Self-questioning 图</a> |
+          <a href="#fig-self-navigating">Self-navigating 图</a> |
+          <a href="#fig-explore-balance-aid">探索-利用平衡示意</a> |
+          <a href="#fig-attribution-fusion-aid">归因融合示意</a> |
+          <a href="#fig-main-results">主结果图</a> |
+          <a href="#ref-exp">实验章节原文</a>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div class="mini">
+            <h3 style="margin:0 0 6px;">Round 1：先看闭环</h3>
+            <p class="foot">先看 <a href="#fig-overview">Figure: 总体框架</a>，再看 <a href="#paper">问题与贡献</a>，建立“为什么要三模块协同”的因果链。</p>
+          </div>
+          <div class="mini">
+            <h3 style="margin:0 0 6px;">Round 2：模块逐个吃透</h3>
+            <p class="foot">按 <a href="#fig-self-questioning">Questioning</a> → <a href="#fig-self-navigating">Navigating</a> → <a href="#method-credit">Attributing</a> 顺序读，关注输入输出与训练信号。</p>
+          </div>
+          <div class="mini">
+            <h3 style="margin:0 0 6px;">Round 3：证据对齐 claim</h3>
+            <p class="foot">在 <a href="#exp-claims">关键 claim</a> 中逐条对照 <a href="#fig-main-results">主结果图</a> 与表格数字，避免只看结论不看约束。</p>
+          </div>
+          <div class="mini">
+            <h3 style="margin:0 0 6px;">Round 4：迁移到你的课题</h3>
+            <p class="foot">读 <a href="#takeaways">研究启发</a>，把它改写成你可执行的“记忆操作策略学习 + 记忆归因”实验计划。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="prereq" class="card">
+        <h2>1. 前置知识（只补必要的）</h2>
+        <ul>
+          <li><b>Proxy task distribution</b>：先用可自动生成任务做代理训练分布，再逐步逼近真实目标分布。</li>
+          <li><b>Experience-guided rollout</b>：让一部分轨迹带经验提示，一部分不带，平衡探索与利用。</li>
+          <li><b>Credit assignment</b>：长轨迹里不同步骤贡献不同，不能只给最终统一奖励。</li>
+          <li><b>Outcome vs Process reward</b>：终局结果告诉你“成没成”，过程归因告诉你“哪一步对/错”。</li>
+        </ul>
+      </section>
+
+      <section id="paper" class="card">
+        <h2>2. 论文问题与贡献（带引用）</h2>
+        <p>论文先指出两个工程痛点：新环境任务集构造昂贵，长轨迹 RL 的探索和样本利用效率低（见 <a href="#ref-intro">Introduction</a>）。</p>
+        <p>对应地，它给出三段式解法：</p>
+        <ul>
+          <li><b>Self-questioning</b>：在未知环境中先探索，再自动合成任务与参考解，并用 LLM Judge 提供训练奖励。</li>
+          <li><b>Self-navigating</b>：把经验池做成可检索指导，在 rollout 时混合 vanilla 与 experience-guided 轨迹，并通过 selective boosting 保留有效梯度。</li>
+          <li><b>Self-attributing</b>：让 LLM 对每步动作做 GOOD/BAD 归因，构造过程奖励，与终局奖励分通道归一化后再融合。</li>
+        </ul>
+        <p class="foot">引用定位：<a href="#ref-maintex">main tex</a>、<a href="#ref-questioning">self_questioning.tex</a>、<a href="#ref-navigating">self_navigating.tex</a>、<a href="#ref-attributing">self_attributing.tex</a>。</p>
+      </section>
+
+      <section id="deep" class="card">
+        <h2>2.5 逐句精读（保姆级拆解）</h2>
+        <details class="detail" open>
+          <summary>精读 1：为什么不是直接用传统 PPO/GRPO？<span class="hint">点击收起</span></summary>
+          <p>传统做法默认“给够 rollouts 就会学到”，但 agent 场景每条轨迹成本高，随机探索会浪费大量采样预算。论文的核心是把“采样预算”变成可控资源，而不是 brute-force。</p>
+        </details>
+        <details class="detail" open>
+          <summary>精读 2：Self-questioning 真正新增了什么？<span class="hint">点击收起</span></summary>
+          <p>关键不在于“合成题”本身，而是把环境 profile、用户偏好、可执行性过滤、参考解校验串成流水线，避免生成不可执行或过度重复的数据。</p>
+        </details>
+        <details class="detail">
+          <summary>精读 3：Self-attributing 为什么能提样本效率？<span class="hint">点击展开</span></summary>
+          <p>它把稀疏终局信号拆成“每步方向性反馈”，让好步骤放大、坏步骤抑制。即便最终失败，也能保留“局部正确动作”的训练价值。</p>
+        </details>
+      </section>
+
+      <section id="method" class="card">
+        <h2>3. 方法详解（流程 + 关键机制）</h2>
+        <h3 id="fig-overview">关键图 1：总体框架（Figure: flowchart1103）</h3>
+        <figure class="paper-figure">
+          <a href="figs/flowchart1103.png" target="_blank" rel="noopener"><img src="figs/flowchart1103.png" alt="AgentEvolver overview"></a>
+          <figcaption>
+            <b>你在看什么</b>：左到右是任务生成、探索强化、信用分配三个模块，形成训练闭环。<br>
+            <b>它证明了什么</b>：论文不是单点技巧，而是系统级 pipeline 设计。<br>
+            <b>如何避免误读</b>：不要把三模块看成可随意替换，实验显示协同效果明显高于单模块。<br>
+            <b>详细读图顺序</b>：先看输入环境，再看中间三模块，再看最右侧优化信号回流。<br>
+            <b>对应结论</b>：三模块互补，完整版本在主实验中最好。<br>
+            <b>误读风险</b>：图是机制示意，不代表每个子模块都同等贡献，需结合消融表判断。<br>
+            <div class="links">
+              <a href="figs/flowchart1103.pdf" target="_blank" rel="noopener">打开原图 PDF</a>
+              <a href="source/sections/intro.tex" target="_blank" rel="noopener">对应文本（intro）</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="fig-closed-loop-aid">补充图：训练闭环结构化示意</h3>
+        <figure class="paper-figure">
+          <a href="ai_figures/ai_01_closed_loop.png" target="_blank" rel="noopener"><img src="ai_figures/ai_01_closed_loop.png" alt="closed loop aid"></a>
+          <figcaption>
+            这张图把“观测 -> 推理 -> 动作 -> 反馈 -> 更新 -> 下一轮观测”画成单一闭环，便于你在答辩时 20 秒内讲清主线。<br>
+            建议配合 <a href="#fig-overview">原总览图</a>一起看：先用这张讲骨架，再回到原图讲三模块细节。
+            <div class="links">
+              <a href="ai_figures/ai_01_closed_loop.png" target="_blank" rel="noopener">打开补充图</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="fig-self-questioning">关键图 2：Self-questioning 管线</h3>
+        <figure class="paper-figure">
+          <a href="figs/questioning-overview.png" target="_blank" rel="noopener"><img src="figs/questioning-overview.png" alt="self-questioning"></a>
+          <figcaption>
+            <b>你在看什么</b>：exploration -> task synthesis -> task curation 三阶段。<br>
+            <b>它证明了什么</b>：任务不是拍脑袋生成，而是从轨迹蒸馏并经可执行性过滤。<br>
+            <b>如何避免误读</b>：这套流程是“训练数据生成器”，不是最终推理时在线策略。<br>
+            <b>详细读图顺序</b>：先看探索输入（profile + 偏好），再看任务构造，最后看 judge 反馈。<br>
+            <b>对应结论</b>：合成数据在多设置下接近或超过原始数据训练。<br>
+            <b>误读风险</b>：若忽略去重与可执行性筛选，数据量增加不一定带来收益。<br>
+            <div class="links">
+              <a href="figs/questioning-overview.pdf" target="_blank" rel="noopener">打开原图 PDF</a>
+              <a href="source/sections/self_questioning.tex" target="_blank" rel="noopener">对应文本（self_questioning）</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="fig-self-navigating">关键图 3：Self-navigating 管线</h3>
+        <figure class="paper-figure">
+          <a href="figs/self-navigating.png" target="_blank" rel="noopener"><img src="figs/self-navigating.png" alt="self-navigating"></a>
+          <figcaption>
+            <b>你在看什么</b>：经验获取、经验混合 rollout、经验融入优化三个环节。<br>
+            <b>它证明了什么</b>：经验不仅在推理时“提示”，也通过训练被内化。<br>
+            <b>如何避免误读</b>：如果只做显式注入但不做优化适配，收益会有上限。<br>
+            <b>详细读图顺序</b>：先看经验池如何建，再看混合比例 η，再看 selective boosting。<br>
+            <b>对应结论</b>：η 过大虽有短期收益，但会压制探索导致长期退化。<br>
+            <b>误读风险</b>：不要把“更多经验引导”误当成“更好训练”。<br>
+            <div class="links">
+              <a href="figs/self-navigating.pdf" target="_blank" rel="noopener">打开原图 PDF</a>
+              <a href="source/sections/self_navigating.tex" target="_blank" rel="noopener">对应文本（self_navigating）</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="fig-explore-balance-aid">补充图：探索-利用平衡（η）示意</h3>
+        <figure class="paper-figure">
+          <a href="ai_figures/ai_02_exploration_exploitation.png" target="_blank" rel="noopener"><img src="ai_figures/ai_02_exploration_exploitation.png" alt="explore exploit aid"></a>
+          <figcaption>
+            这张图把 vanilla rollout 与 experience-guided rollout 的混合关系可视化，重点是“η 过高会抑制探索，过低收益慢”。<br>
+            读图顺序：先看左右两路，再看中间混合器，最后看策略更新输出。
+            <div class="links">
+              <a href="ai_figures/ai_02_exploration_exploitation.png" target="_blank" rel="noopener">打开补充图</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="method-credit">Self-attributing 核心公式（从过程奖励到优势）</h3>
+        <p>论文把每步 GOOD/BAD 映射为离散归因奖励，再做标准化并与终局奖励融合：</p>
+        <pre>r_t = α · r_t(attr) + 1[t=T] · r(out)
+A_t = Σ_{k=t..T} r_k</pre>
+        <p class="foot">对应章节：<a href="#ref-attributing">sections/self_attributing.tex</a>（Step-wise attribution / Composite reward）。</p>
+
+        <h3 id="fig-attribution-fusion-aid">补充图：步骤归因与终局奖励融合</h3>
+        <figure class="paper-figure">
+          <a href="ai_figures/ai_03_attribution_fusion.png" target="_blank" rel="noopener"><img src="ai_figures/ai_03_attribution_fusion.png" alt="attribution fusion aid"></a>
+          <figcaption>
+            这张图对应上面的公式：上层是轨迹步骤与 GOOD/BAD，中层是过程奖励与终局奖励两通道，下层是融合后输出优势 \(A_t\)。<br>
+            它的价值是把“为什么要双通道归一化”讲成可见流程。
+            <div class="links">
+              <a href="ai_figures/ai_03_attribution_fusion.png" target="_blank" rel="noopener">打开补充图</a>
+            </div>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="exp" class="card">
+        <h2>4. 实验怎么读（证据链）</h2>
+        <h3 id="fig-main-results">关键图 4：主结果图（Figure: plot_comparison）</h3>
+        <figure class="paper-figure">
+          <a href="figs/plot_comparison.png" target="_blank" rel="noopener"><img src="figs/plot_comparison.png" alt="main results"></a>
+          <figcaption>
+            <b>你在看什么</b>：AppWorld 与 BFCL v3 上不同模型/方法的整体表现对比。<br>
+            <b>它证明了什么</b>：在参数规模不占优情况下，AgentEvolver 仍获得显著性能提升。<br>
+            <b>如何避免误读</b>：请同时看论文表格中的 avg@8 与 best@8，不要只看单一指标。<br>
+            <div class="links">
+              <a href="figs/plot_comparison.pdf" target="_blank" rel="noopener">打开原图 PDF</a>
+              <a href="source/sections/experiments.tex" target="_blank" rel="noopener">对应文本（experiments）</a>
+            </div>
+          </figcaption>
+        </figure>
+
+        <h3 id="exp-claims">关键 claim 对照</h3>
+        <ul>
+          <li>Claim 1：完整三模块优于任意双模块组合。证据见主结果表（7B/14B 两组都成立）。</li>
+          <li>Claim 2：Self-questioning 的合成数据在混合设置下可超过原始分布训练。证据见 synthetic/hybrid 对比表。</li>
+          <li>Claim 3：Self-navigating 的经验引导需要探索平衡，η=0.5 更稳。证据见 η 分析曲线。</li>
+          <li>Claim 4：Self-attributing 显著提升样本效率。证据见 step-to-threshold 与 AUC 对比。</li>
+        </ul>
+
+        <div class="mini">
+          <h3 style="margin:0 0 6px;">最值得记住的数字</h3>
+          <p class="foot">以文中描述为准：7B 与 14B 在 avg@8 / best@8 都有明显提升，且完整版本 consistently 最优。建议你复现实验时优先复核主表和 attributing 消融表。</p>
+        </div>
+      </section>
+
+      <section id="takeaways" class="card">
+        <h2>5. 研究启发</h2>
+        <p>对你“方向一”最直接的可落地启发：</p>
+        <ul>
+          <li>把记忆系统动作化：ADD/UPDATE/DELETE/NOOP 这类动作可以直接进入策略学习。</li>
+          <li>把经验检索与策略优化分离：先指导 rollout，再通过 stripping/boosting 避免训练失真。</li>
+          <li>把过程归因单列为独立信号：与终局奖励分通道归一化后再融合，通常更稳。</li>
+          <li>先做闭环系统再追求单点最优：模块协同通常比单模块堆料收益更大。</li>
+        </ul>
+      </section>
+
+      <section id="check" class="card">
+        <h2>6. 自测题</h2>
+        <ol>
+          <li>如果去掉 self-questioning，只保留 self-navigating + self-attributing，会在哪些场景先失败，为什么？</li>
+          <li>为什么经验引导比例 η 不能越大越好？请分别从“短期奖励”和“长期泛化”回答。</li>
+          <li>self-attributing 里分开归一化过程奖励与终局奖励，解决了什么训练问题？</li>
+          <li>给你 2 周时间，你会优先复现哪一个子模块，指标怎么选？</li>
+        </ol>
+      </section>
+
+      <section id="figures" class="card">
+        <h2>7. 图索引（回看入口）</h2>
+        <p class="foot">本节只做索引，不重复放图。图像文件位于 <code>figs/</code>，源码位于 <code>source/</code>。</p>
+        <ul>
+          <li><a href="#fig-overview">Figure: AgentEvolver 总体框架（flowchart1103）</a></li>
+          <li><a href="#fig-closed-loop-aid">补充图：训练闭环结构化示意</a></li>
+          <li><a href="#fig-self-questioning">Figure: Self-questioning pipeline（questioning-overview）</a></li>
+          <li><a href="#fig-self-navigating">Figure: Self-navigating pipeline（self-navigating）</a></li>
+          <li><a href="#fig-explore-balance-aid">补充图：探索-利用平衡（η）示意</a></li>
+          <li><a href="#fig-attribution-fusion-aid">补充图：步骤归因与终局奖励融合</a></li>
+          <li><a href="#fig-main-results">Figure: 主结果对比图（plot_comparison）</a></li>
+        </ul>
+      </section>
+
+      <section id="refs" class="card">
+        <h2>8. 引用与文件位置</h2>
+        <p id="ref-maintex" class="foot"><b>主文件</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/colm2025_conference.tex</code></p>
+        <p id="ref-intro" class="foot"><b>引言与问题定义</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/sections/intro.tex</code></p>
+        <p id="ref-questioning" class="foot"><b>Self-questioning</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/sections/self_questioning.tex</code></p>
+        <p id="ref-navigating" class="foot"><b>Self-navigating</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/sections/self_navigating.tex</code></p>
+        <p id="ref-attributing" class="foot"><b>Self-attributing</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/sections/self_attributing.tex</code></p>
+        <p id="ref-exp" class="foot"><b>实验章节</b>：<code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/agentevolver/source/sections/experiments.tex</code></p>
+        <p class="foot"><b>论文 PDF</b>：<a href="../2511.10395_AgentEvolver.pdf" target="_blank" rel="noopener"><code>/Users/xiaoxiaoxuan/Downloads/长程记忆/papers/2511.10395_AgentEvolver.pdf</code></a></p>
+      </section>
+    </main>
+  </div>
+
+  <script data-toc-sidebar>
+    (function(){
+      var key = 'tocCollapsed';
+      var body = document.body;
+
+      function setCollapsed(v){
+        body.classList.toggle('toc-collapsed', !!v);
+        try{ localStorage.setItem(key, v ? '1' : '0'); }catch(e){}
+      }
+
+      function getStored(){
+        try{ return localStorage.getItem(key); }catch(e){ return null; }
+      }
+
+      // Create a floating open button (visible only when collapsed via CSS)
+      var fab = document.querySelector('.toc-fab');
+      if (!fab) {
+        fab = document.createElement('button');
+        fab.className = 'toc-fab';
+        fab.type = 'button';
+        fab.setAttribute('aria-label', 'Open table of contents');
+        fab.textContent = '≡';
+        document.body.appendChild(fab);
+      }
+      fab.addEventListener('click', function(){ setCollapsed(false); });
+
+      var stored = getStored();
+      if (stored === null) {
+        try{
+          if (window.matchMedia && window.matchMedia('(max-width: 980px)').matches) {
+            body.classList.add('toc-collapsed');
+          }
+        }catch(e){}
+      } else {
+        body.classList.toggle('toc-collapsed', stored === '1');
+      }
+
+      // The in-sidebar toggle collapses the entire sidebar.
+      var btn = document.querySelector('nav.toc .toc-toggle');
+      if (btn) {
+        btn.addEventListener('click', function(){ setCollapsed(true); });
+      }
+    })();
+  </script>
+</body>
+</html>

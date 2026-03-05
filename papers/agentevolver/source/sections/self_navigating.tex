@@ -1,0 +1,183 @@
+\section{Self-Navigating}
+\label{sec:self-navigating}
+
+
+Efficient exploration in complex environments remains a central challenge for autonomous agents~\citep{lu2024intelligent, qiao2024agent}. Conventional RL approaches often rely on repetitive and random trial-and-error, resulting in redundant trajectories and slow convergence~\citep{burda2018exploration}. In contrast, human learning excels at extracting knowledge from past failures and systematically applying it to future endeavors. Motivated by this observation, we present a \textbf{\texttt{self-navigating}} mechanism that integrates experience reuse, trajectory guidance, and hybrid policy learning to improve \textbf{exploration efficiency}. \texttt{Self-navigating} enables agents to internalize and exploit prior experiences, thereby shifting exploration from unguided trial-and-error toward a more structured and scalable self-improvement process.
+
+
+\begin{center}
+\begin{tcolorbox}[
+  title=An example of \emph{experience} for AppWorld,
+  width=16cm,
+  boxrule=0.45mm,
+  fonttitle=\bfseries,
+  enhanced,
+  sharp corners,
+  colback=white,
+  colframe=black!70,
+  arc=0mm,
+  pad at break=2mm,
+  outer arc=0mm
+]
+\texttt{%
+\textbf{When to use:} \\ 
+When attempting to use an API that hasn't been explicitly confirmed to exist or function as expected. \\
+\\
+\textbf{Content:} \\
+Always verify the existence and behavior of an API through its specifications (using apis.api\_docs.show\_api\_doc) before executing calls, especially for critical actions like deletions or modifications.
+}
+\end{tcolorbox}
+\label{fig:experience notion}
+\captionof{figure}{An example of \emph{experience} for AppWorld, consisting of two components: \emph{When to use} and \emph{Content}.}
+\end{center}
+
+\paragraph{Notion of Experience}
+
+In the context of agent self-evolution, an \emph{experience} encapsulates distilled insights derived from past trajectories, encompassing both successful and unsuccessful cases. In our setting, we formalize an \emph{experience} as a unit of structured knowledge articulated in natural language, designed to guide agents toward appropriate decisions through In-Context Learning (ICL). Each \emph{experience} comprises two components: \emph{When to use} and \emph{Content}. The \emph{When to use} component specifies the conditions under which the experience is applicable and serves as a retrieval trigger, with queries semantically matching to its vectorized embedding. The \emph{Content} component provides detailed instructions, precautions, or recommended strategies for effective action within that context. Representing experiences entirely in natural language preserves interpretability while supporting scalable, embedding-based retrieval.
+
+
+
+\subsection{Experience Acquisition}\label{sec:exp_acq}
+To enable effective experience reuse, we introduce an \emph{experience acquisition} stage that spans both offline and online phases. In the offline phase, the \emph{Pool Construction} process builds a diverse and well-structured repository of high-quality experiences. During the online phase (i.e., rollout or inference), the \emph{Experience Retrieval} process dynamically draws task-specific knowledge from this repository to provide contextually relevant guidance. Together, these two processes ensure that prior trajectories can be utilized effectively by constructing experiences while preserving adaptability across diverse tasks~\footnote{More implementation details can be found at: \url{https://github.com/agentscope-ai/ReMe}.}.
+
+
+
+
+\begin{figure}
+  \centering
+  \includegraphics[width=1.0\textwidth]{figs/self-navigating.pdf}
+  \caption{The pipeline of \texttt{self-navigating} mechanism. It comprises three key stages: (i) \emph{Experience Acquisition}, where the agent constructs and retrieves structured natural-language experiences distilled from prior trajectories; (ii) \emph{Experience-mixed Rollout}, which interleaves unguided and experience-guided trajectories to balance exploration and exploitation; and (iii) \emph{Experience Incorporation}, which integrates retrieved experiences into the policy optimization process.}
+  \label{fig:navigating}
+\end{figure}
+
+\paragraph{Pool Construction}
+
+
+To construct a cold-start experience pool $\mathcal{P}_{\text{exp}}$ for environment $\mathcal{E}$ using the proxy task distribution $p_{\text{train}}$ (derived from the \texttt{self-questioning} module in Section~\ref{sec:self-questioning}), we proceed as follows. For each task $g$ sampled from $p_{\text{train}}$, the initial policy $\pi_{\theta_{\text{init}}}$ performs $N_{\text{pc}}$ independent rollouts in $\mathcal{E}$, producing a set of trajectories. Each trajectory set then undergoes through a processing pipeline $\Omega_{\text{process}}$, which consists of the following key stages:
+(1) \emph{trajectory preprocessing}, where collected trajectories are validated and classified into success and failure groups according to their scores;
+(2) \emph{experience extraction}, where task memories are distilled from successful, failed, or comparative trajectory pairs, capturing essential behavioral insights;
+(3) \emph{experience validation}, which employs an LLM-based evaluator to assess the quality and reliability of each extracted experience; and
+(4) \emph{vector store updating}, where validated task experiences are indexed and integrated into the long-term experience storage for subsequent retrieval and reasoning.
+The final experience pool $\mathcal{P}{\text{exp}}$ is obtained by aggregating the processed trajectory sets across all sampled tasks, formally defined as:
+\begin{equation}
+\mathcal{P}_{\text{exp}} = \bigcup_{g \sim p_{\text{train}}} \Omega_{\text{process}} \left( \left\{ \tau_i^{(g)} \right\}_{i=1}^{N_{\text{pc}}} \right), \quad \text{where} \quad \tau_i^{(g)} \sim \pi_{\theta_{\text{init}}}(\cdot \mid \mathcal{E}, g).
+\end{equation}
+
+
+\paragraph{Experience Retrieval}
+Given a task $g$, we extract its associated query $q$ and encode it into an embedding vector $\mathbf{h}_q$. Each experience $e \in \mathcal{P}_{\text{exp}}$ is represented similarly by an embedding $\mathbf{h}_e$. The similarity between $\mathbf{h}_q$ and all $\mathbf{h}_e$ is computed to retrieve the most relevant experiences. The top-$k$ most similar experiences are then refined through a module $\Omega_{\text{refine}}$, which performs (1) re-ranking to ensure contextual relevance and task alignment, and (2) re-writing to enhance the generality and adaptability of the retrieved experiences.
+
+
+The overall retrieval process is formalized as:
+\begin{equation}
+    EXP(g) = \Omega_{\text{refine}} \Big( 
+        \operatorname{TopK}_k \big( 
+            \{ \operatorname{sim}(\mathbf{h}_q, \mathbf{h}_e) \mid e \in \mathcal{P}_{\text{exp}} \} 
+        \big) 
+    \Big),
+\end{equation}
+where $\operatorname{sim}(\cdot, \cdot)$ denotes the similarity measure computed by the cosine similarity function, $\operatorname{TopK}_k$ selects the $k$ experiences with the highest similarity scores, and $\Omega_{\text{refine}}(\cdot)$ performs re-ranking and re-writing to yield the final retrieved set $EXP(g)$.
+
+
+
+\subsection{Experience-mixed Rollout}
+While prior experiences offer valuable guidance, excessive reliance on them may hinder exploration. To balance this trade-off, we introduce an \emph{experience-mixed rollout} stage that interleaves unguided and experience-guided trajectories. By integrating these two types of rollouts, our approach allows agents to efficiently leverage prior knowledge while maintaining flexibility and adaptability in novel situations.
+
+\paragraph{Trajectory Generation}
+Given the task $g$, the policy model $\pi_{\theta_{\text{old}}}$ interacts with the environment to generate a set of trajectories $\mathcal{T}=\mathcal{T}^{(v)} \cup \mathcal{T}^{(e)}$.
+Specifically, $\mathcal{T}^{(v)}$ denotes \textbf{vanilla rollouts}, which are generated solely by the policy model without external guidance; whereas $\mathcal{T}^{(e)}$ corresponds to \textbf{experience-guided rollouts}, wherein retrieved experience is incorporated to steer the generation process:
+\begin{equation}
+    \mathcal{T}^{(v)}=\left\{\tau_i^{(v)}\right\}_{i=1}^{N_v}, \quad \mathcal{T}^{(e)}=\left\{\tau_j^{(e)}\right\}_{j=1}^{N_e}, \quad N=N_v+N_e.
+\end{equation}
+
+
+The balance between the two types of rollouts is controlled by $\eta$, with $N_e=\lfloor \eta \cdot N \rfloor$. The higher $\eta$ values favor prior experience, while the lower values promote unconstrained exploration. For experience-guided rollouts, a relevant experience snippet $exp_g\in EXP(g)$ is first retrieved (see Section~\ref{sec:exp_acq}) and injected into the initial prompt following a predefined template, e.g.,  
+\texttt{\colorbox{gray!10}{\{system\_prompt\}<EXP>\{$exp_g$\}</EXP>\{query\}}}.
+
+
+\paragraph{Advantage Computation}
+To ensure a consistent treatment of both vanilla and experience-guided trajectories, we compute the standardized advantage for each trajectory $\tau \in \mathcal{T}$ across the entire set:
+\begin{equation}
+\hat{A}(\tau)=\frac{R(\tau)-\mu_R}{\sigma_R+\varepsilon_{\text {norm }}},
+\end{equation}
+where $R(\tau)$ denotes the reward for trajectory $\tau$, 
+$\mu_R$ and $\sigma_R$ represent the mean and standard deviation of rewards across all trajectories,
+and $\varepsilon_{\text {norm }}$ is a small constant introduced for numerical stability.
+
+This design allows the model to explicitly leverage prior textual experience through in-context learning, steering generation toward reliable and sample-efficient reasoning paths while maintaining flexibility with unconstrained vanilla rollouts. By integrating vanilla and experience-guided trajectories, the proposed experience-mixed rollout strategy strikes a balance between \textbf{exploration and exploitation}, offering a principled foundation for subsequent policy optimization.
+
+
+
+\subsection{Experience Incorporation}
+To seamlessly integrate the benefits of retrieved experiences into RL training, we propose an \emph{experience incorporation} mechanism that operates during the optimization stage. This mechanism comprises two complementary components: \emph{experience stripping} and \emph{selective boosting}. The former prevents spurious dependence on explicit textual cues, while the latter amplifies the influence of pertinent constructive experiences. In combination, these procedures ensure that experience effectively guides policy learning while mitigating the peril of over-reliance on external prompts.
+
+
+\paragraph{Experience Stripping}
+
+
+
+While experience-guided rollouts leverage extracted experience by injecting it into the input prompt, retaining these tokens during optimization risks undesirable overfitting, as the model may memorize external content rather than assimilating its underlying reasoning signals. To address this, we adopt an \emph{experience stripping} strategy: prior to policy gradient computation, retrieved experience tokens are removed from the training samples. This ensures that optimization is driven exclusively by the generated trajectory, thus attributing reward signals to the model’s intrinsic reasoning processes rather than auxiliary contextual cues. Consequently, the rollout phase continues to benefit from experience, whereas the training phase fosters genuine policy improvement.
+
+
+\begin{center}
+\begin{tcolorbox}[
+  title=An illustration of \emph{Experience Stripping},
+  width=16cm,
+  boxrule=0.45mm,
+  fonttitle=\bfseries,
+  enhanced,
+  sharp corners,
+  colback=white,
+  colframe=black!70,
+  arc=0mm,
+  pad at break=2mm,
+  outer arc=0mm
+]
+\texttt{%
+\textbf{Before:} \\ 
+\{system\_prompt\}\colorbox{gray!15}{<EXP>\{experience\}</EXP>}\{query\}\{trajectory\} \\
+\\
+\textbf{After:} \\
+\{system\_prompt\}\{query\}\{trajectory\}
+}
+\end{tcolorbox}
+\captionof{figure}{Illustration of \emph{experience stripping}.}
+\label{fig:experience stripping}
+\end{center}
+
+
+
+\paragraph{Selective Boosting}
+After obtaining experience-guided training samples with the experience tokens removed, it is important to note that the original rollout trajectories were conditioned on both the query and the experience, whereas the current optimization samples are conditioned solely on the query. This inference and learning sample \textbf{mismatch} causes a typical off-policy learning problem where the probability distribution of the optimized samples is substantially narrower than that of the rollout samples~\citep{yan2025learning}, leading the importance ratio $r^{(e)}$ to grow uncontrollably. 
+
+
+
+
+Although standard PPO/GRPO clipping can partially mitigate this instability by constraining the importance ratio, excessive clipping suppresses the gradient contributions of experience-guided updates and thus limits learning efficiency. To overcome this limitation, we propose a \emph{selective boosting} strategy. As shown in Eq.~\eqref{eq:navigating_loss}, for samples with strictly positive advantages ($\hat{A}^{(e)} > 0$), the upper clipping threshold $\hat{\epsilon}_{\text{high}}$ is selectively boosted, allowing larger importance ratios to pass through without attenuation. This preserves the optimization signals from favorable experience-conditioned trajectories, enabling the policy model to learn more effectively from experience.
+
+
+
+
+\begin{equation}\label{eq:navigating_loss}
+\begin{aligned}
+\mathcal{L}_{\text{navigating}}(\theta) = 
+-\frac{1}{N} \Biggl[ &
+\sum_{i=1}^{N_v} \min \Big( r_i^{(v)} \hat{A}_i^{(v)}, 
+\operatorname{clip}\big( r_i^{(v)}, 1-\epsilon_{\text{low}}, 1+\epsilon_{\text{high}} \big) \hat{A}_i^{(v)} \Big) \\
++ & \sum_{j=1}^{N_e} \min \Big( r_j^{(e)} \hat{A}_j^{(e)}, 
+\operatorname{clip}\big( r_j^{(e)}, 1-\epsilon_{\text{low}}, 1+\epsilon_j \big) \hat{A}_j^{(e)} \Big) 
+\Biggr] 
++ \beta \operatorname{KL}\left( \pi_\theta \| \pi_{\theta_{\text{old}}} \right),
+\end{aligned}
+\end{equation}
+\vspace{-0.2cm}
+\begin{align*}
+\text{where:} \quad 
+& r_i^{(v)} = \frac{\pi_\theta(\tau_i^{(v)})}{\pi_{\theta_{\text{old}}}(\tau_i^{(v)})}, \quad 
+r_j^{(e)} = \frac{\pi_\theta(\tau_j^{(e)})}{\pi_{\theta_{\text{old}}}(\tau_j^{(e)})}, \quad
+\epsilon_j = 
+\begin{cases} 
+\hat{\epsilon}_{\text{high}} & \text{if } \hat{A}_j^{(e)} > 0 \\
+\epsilon_{\text{high}} & \text{otherwise}
+\end{cases} \quad.
+\end{align*}

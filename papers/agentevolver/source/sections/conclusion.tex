@@ -1,0 +1,25 @@
+\section{Conclusion and Next Steps}
+\label{sec:conclusion}
+This work introduced \textbf{AgentEvolver}, a self-evolving agent framework that shifts the learning initiative from fixed, human-engineered pipelines to LLM-guided improvement. Grounded in a standard training flow---from environments to tasks, from tasks to trajectories, and from trajectories to policy---AgentEvolver operationalizes three synergistic mechanisms:
+(i) \texttt{self-questioning} for curiosity-driven task generation,
+(ii) \texttt{self-navigating} for experience-guided exploration, and
+(iii) \texttt{self-attributing} for fine-grained credit assignment along long horizons.
+Together, these components systematically alleviate three persistent bottlenecks in RL-driven agent training: task scarcity, inefficient exploration, and low sample utilization. 
+
+Beyond methodology, we presented a practical infrastructure that standardizes environment interfaces, integrates with RL stacks such as \texttt{veRL}, and supports modular extension. This combination of algorithmic design and engineering pragmatics positions AgentEvolver as both a research vehicle and a reusable foundation for building adaptive, tool-augmented agents.
+
+\subsection*{Next Steps}
+Looking ahead, we outline three directions that we believe will most effectively extend the scope and impact of AgentEvolver:
+
+\paragraph{1.\ Challenge-oriented applications.}
+Building on current validations in \textsc{AppWorld} and \textsc{BFCL}, we will target environments with higher task complexity and greater real-world value (e.g., multi-API enterprise workflows, safety-critical tool chains, and long-horizon, interleaved objectives). The goal is to \emph{co-design} environments and self-questioning curricula so that the agent uncovers functional boundaries more systematically and produces deployable models with measurable business or scientific impact.
+
+
+\paragraph{2.\ Scaling to larger models.}
+We will explore AgentEvolver with larger LLM-based policy models to investigate how the benefits of self-evolution scale with model capacity. Key questions include: How does task quality under \texttt{self-questioning} improve as reasoning depth and reflective ability increase with scale? Do larger policies, capable of abstracting and reusing their prior experiences, exhibit reduced exploration redundancy during \texttt{self-navigating}? Can \texttt{self-attributing} achieve more accurate credit assignment when enhanced causal reasoning enables finer-grained tracing of decision origins? We will further examine compute–data trade-offs and develop cost-aware curricula to enable scalable and efficient long-horizon training.
+
+\paragraph{3.\ LLM-level self-evolving.}
+We aim to unify exploration, experience abstraction, self-attribution, and inference within a single model (or tightly coupled family of models), enabling \emph{LLM-level self-improvement}. Concretely, the same model will (i) generate tasks and hypotheses, (ii) navigate new environments with guidance from distilled priors, (iii) attribute outcomes to internal decisions, and (iv) update its reasoning patterns and control policies accordingly. This line pursues tighter loops between memory, generalization, and policy improvement, potentially yielding agents that maintain and refine a self-consistent body of procedural knowledge over time.
+
+\medskip
+Pursuing these directions will stress-test the proposed mechanisms in more realistic and dynamically evolving settings. By coupling larger-capacity models with end-to-end, LLM-level self-evolving loops, we expect further gains in sample efficiency, robustness, and cross-environment generalization, bringing us closer to scalable, cost-effective, and continually improving agentic systems.

@@ -1,0 +1,39 @@
+# AutoEvolve 项目依赖
+# Python >= 3.8
+
+# 核心依赖（当前简化实现仅需标准库）
+# 未来扩展可能需要：
+
+# 数据处理
+# numpy>=1.21.0
+# pandas>=1.3.0
+
+# LLM API客户端
+# openai>=1.0.0
+# anthropic>=0.8.0
+
+# 向量数据库（用于记忆存储）
+# chromadb>=0.4.0
+# faiss-cpu>=1.7.0
+
+# 图数据库（可选）
+# neo4j>=5.0.0
+# networkx>=3.0
+
+# 机器学习
+# scikit-learn>=1.0.0
+# torch>=2.0.0
+
+# 实验追踪
+# wandb>=0.15.0
+# tensorboard>=2.13.0
+
+# 开发工具
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# 文档
+# mkdocs>=1.4.0
+# mkdocs-material>=9.0.0

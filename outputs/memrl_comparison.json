@@ -1,0 +1,30 @@
+{
+  "config": {
+    "steps": 1000,
+    "eval_episodes": 200,
+    "seed": 42,
+    "env": {
+      "num_intents": 4,
+      "num_task_types": 3,
+      "num_contexts": 8,
+      "num_actions": 6
+    }
+  },
+  "baseline": {
+    "success_rate": 0.65,
+    "retrieval_accuracy": 1.0,
+    "avg_reward": 0.3712,
+    "convergence_step": 901
+  },
+  "task_specific": {
+    "success_rate": 0.985,
+    "retrieval_accuracy": 1.0,
+    "avg_reward": 0.6123999999999999,
+    "convergence_step": 433
+  },
+  "delta": {
+    "success_rate": 0.33499999999999996,
+    "avg_reward": 0.24119999999999997,
+    "convergence_step": 468
+  }
+}
