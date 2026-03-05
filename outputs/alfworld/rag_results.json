@@ -1,0 +1,61 @@
+{
+  "method": "rag",
+  "config": {
+    "num_epochs": 3,
+    "split": "eval_in_distribution",
+    "max_tasks": 20,
+    "alpha": 0.3,
+    "lam": 0.5,
+    "delta": 0.3,
+    "k1": 5,
+    "k2": 3,
+    "seed": 42
+  },
+  "summary": {
+    "final_sr": 0.55,
+    "csr": 2.05,
+    "total_api_tokens": 1828228,
+    "memory_size": 60
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "sr": 0.7,
+      "per_task_type_sr": {
+        "pick_cool_then_place_in_recep": 0.8333333333333334,
+        "pick_two_obj_and_place": 0.6,
+        "look_at_obj_in_light": 1.0,
+        "pick_heat_then_place_in_recep": 0.75,
+        "pick_and_place_simple": 0.0,
+        "pick_clean_then_place_in_recep": 1.0
+      },
+      "num_tasks": 20
+    },
+    {
+      "epoch": 2,
+      "sr": 0.8,
+      "per_task_type_sr": {
+        "pick_clean_then_place_in_recep": 0.8,
+        "pick_two_obj_and_place": 0.7142857142857143,
+        "pick_and_place_simple": 1.0,
+        "pick_heat_then_place_in_recep": 1.0,
+        "pick_cool_then_place_in_recep": 0.5,
+        "look_at_obj_in_light": 1.0
+      },
+      "num_tasks": 20
+    },
+    {
+      "epoch": 3,
+      "sr": 0.55,
+      "per_task_type_sr": {
+        "pick_two_obj_and_place": 1.0,
+        "pick_clean_then_place_in_recep": 0.8,
+        "pick_cool_then_place_in_recep": 0.0,
+        "pick_heat_then_place_in_recep": 0.6666666666666666,
+        "pick_and_place_simple": 0.8,
+        "look_at_obj_in_light": 0.0
+      },
+      "num_tasks": 20
+    }
+  ]
+}
