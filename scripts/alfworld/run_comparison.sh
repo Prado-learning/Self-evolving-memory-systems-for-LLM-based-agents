@@ -1,34 +1,35 @@
 #!/bin/bash
-# Run all 4 methods for comparison
+# Run multi-seed comparison experiment
+# Usage: bash scripts/alfworld/run_comparison.sh [epochs] [max_tasks] [seeds]
 set -e
-export ALFWORLD_DATA=/home/user/alfworld_data
 
-EPOCHS=3
-MAX_TASKS=20
-OUTPUT_DIR=outputs/alfworld
+EPOCHS=${1:-5}
+MAX_TASKS=${2:-20}
+SEEDS="${3:-42 123 456}"
+OUTPUT_DIR=outputs/alfworld/multiseed
 
-cd /home/user/lvhuanzhu/AutoEvolve
+# Get project root (parent of scripts/alfworld)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-echo "=== Starting 4-method comparison: $EPOCHS epochs x $MAX_TASKS tasks ==="
+echo "=== Multi-seed comparison: $EPOCHS epochs x $MAX_TASKS tasks x seeds=[$SEEDS] ==="
+echo "Project root: $PROJECT_ROOT"
 
-for METHOD in no_memory rag memrl task_memrl; do
-    echo ""
-    echo "============================="
-    echo "Running method: $METHOD"
-    echo "============================="
-    python3 scripts/alfworld/run_experiment.py \
-        --method $METHOD \
-        --epochs $EPOCHS \
-        --max-tasks $MAX_TASKS \
-        --output-dir $OUTPUT_DIR \
-        --alpha 0.3 \
-        --lam 0.5 \
-        --delta 0.3 \
-        --k1 5 \
-        --k2 3
-    echo "Done: $METHOD"
-done
+python3 scripts/alfworld/run_multiseed.py \
+    --methods no_memory rag memrl task_memrl \
+    --seeds $SEEDS \
+    --epochs $EPOCHS \
+    --max-tasks $MAX_TASKS \
+    --output-dir $OUTPUT_DIR \
+    --alpha 0.3 \
+    --lam 0.5 \
+    --delta 0.3 \
+    --k1 5 \
+    --k2 3
 
 echo ""
-echo "=== All methods complete ==="
-echo "Results in $OUTPUT_DIR/"
+echo "=== Done. Results in $OUTPUT_DIR/ ==="
+
+# Generate plots
+echo "Generating plots..."
+python3 scripts/alfworld/plot_results.py --input $OUTPUT_DIR/aggregated_results.json --output $OUTPUT_DIR/plots
+echo "Plots saved to $OUTPUT_DIR/plots/"

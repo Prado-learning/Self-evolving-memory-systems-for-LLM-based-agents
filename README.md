@@ -25,27 +25,39 @@
 
 ```
 AutoEvolve/
-├── README.md                 # 本文件
-├── requirements.txt          # Python依赖
-├── docs/                     # 文档
-│   ├── presentation.md       # 组会分享大纲
-│   ├── comparison_analysis.md # 论文对比分析
-│   └── PPT_Script.md         # 演讲脚本
-├── src/                      # 源代码
-│   ├── simple/               # 简化实现
-│   │   ├── agentevolve.py    # AgentEvolver复现
-│   │   └── memevolve.py      # MemEvolve复现
-│   └── utils/                # 工具函数
-├── experiments/              # 实验实现
-│   └── memrl/                # MemRL 核心复现
-├── scripts/memrl/            # MemRL 运行脚本
-├── outputs/                  # 实验结果输出
-├── tests/                    # 单元测试
-└── papers/                   # 论文源文件（保留原目录）
-    ├── agentevolver/
-    ├── memevolve/
-    ├── MemGen/
-    └── MemRL/
+├── README.md                      # 本文件
+├── requirements.txt                # Python依赖
+├── docs/                          # 文档
+│   ├── MemRL_Repro.md             # MemRL复现说明与创新点
+│   ├── comparison_analysis.md      # 四篇论文对比分析
+│   └── plans/                     # 实现计划
+│       └── 2026-03-05-task-memrl-alfworld.md
+├── src/                           # 源代码
+│   └── simple/                    # 简化实现
+│       ├── agentevolve.py         # AgentEvolver复现
+│       └── memevolve.py           # MemEvolve复现
+├── experiments/                   # 实验实现
+│   ├── memrl/                     # MemRL核心机制
+│   │   └── memrl_core.py         # Toy环境验证
+│   └── alfworld/                  # ALFWorld真实环境实验
+│       ├── memory_bank.py         # 双套Q-value记忆银行
+│       ├── runner.py              # 训练流程
+│       ├── agent.py               # Agent实现
+│       ├── alfworld_env.py        # 环境封装
+│       └── embedding.py           # 向量化
+├── scripts/                       # 运行脚本
+│   ├── memrl/                    # MemRL脚本
+│   │   └── run_memrl_comparison.py
+│   └── alfworld/                  # ALFWorld脚本
+│       ├── run_experiment.py      # 单实验
+│       ├── run_comparison.sh      # 批量对比
+│       ├── analyze_results.py     # 统计分析
+│       └── plot_final_results.py  # 可视化
+└── tests/                         # 单元测试
+    ├── memrl/
+    │   └── test_memrl_smoke.py
+    ├── test_agentevolve.py
+    └── test_memevolve.py
 ```
 
 ## 快速开始
@@ -73,7 +85,7 @@ python src/simple/agentevolve.py
 python src/simple/memevolve.py
 ```
 
-**MemRL 复现（MVP）：**
+**MemRL Toy实验：**
 ```bash
 python scripts/memrl/run_memrl_comparison.py --steps 6000 --eval-episodes 1200 --seed 42
 python -m pytest -q tests/memrl/test_memrl_smoke.py
@@ -84,6 +96,48 @@ python -m pytest -q tests/memrl/test_memrl_smoke.py
 MemEvolve 演示双层进化框架：
 - **内层循环（一阶）**: 固定架构下积累经验
 - **外层循环（二阶）**: 进化记忆架构本身（Encode/Store/Retrieve/Manage四组件）
+
+## 核心创新：Task-Conditioned Q-Value
+
+### 问题
+
+MemRL原版使用全局 Q(intent, experience)，不区分任务类型。这会导致**负迁移**——例如 pick_clean 的最优策略（去 sinkbasin 清洗）可能会干扰 pick_heat 的策略（去 microwave 加热）。
+
+### 解决方案
+
+将 Q 扩展为 **Q(intent, experience, task_type)**，每个 task_type 维护独立的 Q-value：
+
+```python
+# 全局Q（MemRL原版）
+mem["q_global"]
+
+# 任务私有Q（我们的创新）
+mem["q_per_task"][task_type]
+```
+
+### 两阶段检索
+
+```
+Phase A: 语义相似度过滤 (cosine > δ, top-k1)
+    ↓
+Phase B: Q值排序
+    score = (1-λ) * sim_norm + λ * Q_task_specific
+```
+
+### 核心代码
+
+```python
+# experiments/alfworld/memory_bank.py
+def retrieve_two_phase(self, query_emb, k1=5, k2=3, delta=0.5, lam=0.5, task_type=None):
+    candidates = self.retrieve_phase_a(query_emb, k1=k1, delta=delta)
+    # ...
+    for i, c in enumerate(candidates):
+        if task_type is not None:
+            q = c["q_per_task"].get(task_type, 0.0)  # TaskMemRL
+        else:
+            q = c["q_global"]                         # MemRL baseline
+        c["score"] = (1 - lam) * sim_norm[i] + lam * q_norm[i]
+```
 
 ## 核心概念
 
@@ -127,18 +181,11 @@ MemRL (怎么用记忆)
 统一框架: 自进化记忆系统
 ```
 
-## 实验计划
-
-1. **基线实验**: 在AppWorld/BFCL等基准上测试简化实现
-2. **消融实验**: 分析各组件对性能的影响
-3. **融合实验**: 探索MemGen/MemRL与AgentEvolver的结合
-4. **跨任务泛化**: 验证进化架构的可迁移性
-
 ## 文档索引
 
-- [组会分享大纲](docs/presentation.md) - 四篇论文核心思想与关联分析
-- [对比分析](docs/comparison_analysis.md) - 深度方法论对比
-- [演讲脚本](docs/PPT_Script.md) - 30-40分钟组会演讲稿
+- [MemRL复现说明](docs/MemRL_Repro.md) - Task-MemRL创新点详解
+- [论文对比分析](docs/comparison_analysis.md) - 四篇论文深度方法论对比
+- [实现计划](docs/plans/2026-03-05-task-memrl-alfworld.md) - ALFWorld实验技术路线
 
 ## 参考文献
 

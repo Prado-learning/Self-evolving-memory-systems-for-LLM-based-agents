@@ -1,118 +1,256 @@
 #!/usr/bin/env python3
-"""Analyze and compare results from ALFWorld experiments."""
+"""Aggregate multi-seed results and perform statistical analysis."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Dict, List
+
+import numpy as np
+from scipy import stats
 
 
-def load_results(output_dir: str = "outputs/alfworld") -> dict:
-    results = {}
-    for f in Path(output_dir).glob("*_results.json"):
-        method = f.stem.replace("_results", "")
-        with open(f) as fp:
-            results[method] = json.load(fp)
-    return results
+def load_seed_results(output_dir: Path, seeds: List[int], methods: List[str]) -> Dict:
+    """Load individual seed results and organize by method and seed."""
+    all_results = {m: [] for m in methods}
+
+    for seed in seeds:
+        seed_dir = output_dir / f"seed_{seed}"
+        if not seed_dir.exists():
+            print(f"Warning: {seed_dir} does not exist, skipping seed {seed}")
+            continue
+
+        for method in methods:
+            result_file = seed_dir / f"{method}_results.json"
+            if result_file.exists():
+                with open(result_file) as f:
+                    all_results[method].append(json.load(f))
+            else:
+                print(f"Warning: {result_file} not found")
+
+    return all_results
 
 
-def print_comparison(results: dict) -> None:
-    methods = ["no_memory", "rag", "memrl", "task_memrl"]
-    available = [m for m in methods if m in results]
+def aggregate_method(method_results: List[dict], n_epochs: int) -> dict:
+    """Aggregate results across seeds for a single method."""
+    if not method_results:
+        return {}
 
-    if not available:
-        print("No results found.")
-        return
+    # Final SR across seeds
+    final_srs = [r["summary"]["final_sr"] for r in method_results]
 
-    # Header
-    print("\n" + "=" * 80)
-    print("ALFWorld Experiment Results: TaskMemRL vs MemRL Comparison")
-    print("=" * 80)
+    # Epoch-level SR
+    epoch_srs = []
+    for e_idx in range(n_epochs):
+        srs = []
+        for r in method_results:
+            if e_idx < len(r["epochs"]):
+                srs.append(r["epochs"][e_idx]["sr"])
+            else:
+                srs.append(np.nan)
+        epoch_srs.append({
+            "mean": float(np.nanmean(srs)),
+            "std": float(np.nanstd(srs)),
+            "values": srs,
+        })
+
+    # Per-task-type SR from final epoch
+    all_task_types = set()
+    for r in method_results:
+        if r["epochs"]:
+            all_task_types.update(r["epochs"][-1]["per_task_type_sr"].keys())
+
+    per_type_stats = {}
+    for tt in sorted(all_task_types):
+        vals = []
+        for r in method_results:
+            if r["epochs"]:
+                vals.append(r["epochs"][-1]["per_task_type_sr"].get(tt, 0.0))
+        per_type_stats[tt] = {
+            "mean": float(np.mean(vals)),
+            "std": float(np.std(vals)),
+            "values": vals,
+        }
+
+    return {
+        "n_seeds": len(method_results),
+        "final_sr": {
+            "mean": float(np.mean(final_srs)),
+            "std": float(np.std(final_srs)),
+            "values": final_srs,
+        },
+        "epoch_srs": epoch_srs,
+        "per_task_type_sr": per_type_stats,
+        "total_tokens": sum(r["summary"]["total_api_tokens"] for r in method_results),
+    }
+
+
+def perform_ttest(method_a: str, data_a: dict, method_b: str, data_b: dict) -> dict:
+    """Perform paired t-test between two methods."""
+    a_values = np.array(data_a["final_sr"]["values"])
+    b_values = np.array(data_b["final_sr"]["values"])
+
+    # Paired t-test
+    t_stat, p_value = stats.ttest_rel(a_values, b_values)
+
+    # Effect size (Cohen's d)
+    diff = a_values - b_values
+    cohens_d = np.mean(diff) / np.std(diff) if np.std(diff) > 0 else 0
+
+    return {
+        "comparison": f"{method_a} vs {method_b}",
+        "t_statistic": float(t_stat),
+        "p_value": float(p_value),
+        "cohens_d": float(cohens_d),
+        "significant_005": p_value < 0.05,
+        "significant_001": p_value < 0.01,
+        f"{method_a}_mean": float(np.mean(a_values)),
+        f"{method_b}_mean": float(np.mean(b_values)),
+        "mean_diff": float(np.mean(diff)),
+    }
+
+
+def generate_report(all_results: Dict, methods: List[str], seeds: List[int]) -> str:
+    """Generate a text report of the analysis."""
+    lines = []
+    lines.append("=" * 70)
+    lines.append("ALFWorld Multi-Seed Experiment Analysis Report")
+    lines.append("=" * 70)
+    lines.append(f"Seeds: {seeds}")
+    lines.append(f"Methods: {methods}")
+    lines.append("")
 
     # Summary table
-    print(f"\n{'Method':<15} {'Final SR':>10} {'CSR':>10} {'Tokens':>12} {'Memory':>8}")
-    print("-" * 60)
-    for m in available:
-        s = results[m]["summary"]
-        print(f"{m:<15} {s['final_sr']:>10.3f} {s['csr']:>10.3f} {s['total_api_tokens']:>12,} {s['memory_size']:>8}")
+    lines.append("-" * 70)
+    lines.append("Final Success Rate Summary (mean ± std)")
+    lines.append("-" * 70)
+    lines.append(f"{'Method':<20} {'Final SR':>15} {'Significance':>15}")
+    lines.append("-" * 70)
 
-    # Per-epoch SR
-    print("\n--- Success Rate by Epoch ---")
-    header = f"{'Epoch':<8}"
-    for m in available:
-        header += f" {m:>12}"
-    print(header)
-    print("-" * (8 + 13 * len(available)))
+    for method in methods:
+        if method in all_results and "final_sr" in all_results[method]:
+            sr = all_results[method]["final_sr"]
+            lines.append(f"{method:<20} {sr['mean']:.3f} ± {sr['std']:.3f}")
+    lines.append("")
 
-    max_epochs = max(len(results[m]["epochs"]) for m in available)
-    for e in range(max_epochs):
-        row = f"{e + 1:<8}"
-        for m in available:
-            epochs = results[m]["epochs"]
-            if e < len(epochs):
-                row += f" {epochs[e]['sr']:>12.3f}"
-            else:
-                row += f" {'N/A':>12}"
-        print(row)
+    # Epoch trajectory
+    lines.append("-" * 70)
+    lines.append("Success Rate Trajectory (mean across seeds)")
+    lines.append("-" * 70)
+    lines.append(f"{'Epoch':>8}", end="")
+    for method in methods:
+        if method in all_results:
+            lines.append(f" {method:>15}", end="")
+    lines.append("")
+    lines.append("-" * 70)
 
-    # Per-task-type SR (final epoch)
-    print("\n--- Per-Task-Type Success Rate (Final Epoch) ---")
-    all_types = set()
-    for m in available:
-        last_epoch = results[m]["epochs"][-1]
-        all_types.update(last_epoch["per_task_type_sr"].keys())
-    all_types = sorted(all_types)
+    if methods and methods[0] in all_results and "epoch_srs" in all_results[methods[0]]:
+        n_epochs = len(all_results[methods[0]]["epoch_srs"])
+        for e_idx in range(n_epochs):
+            lines.append(f"{e_idx + 1:>8}", end="")
+            for method in methods:
+                if method in all_results and e_idx < len(all_results[method]["epoch_srs"]):
+                    sr = all_results[method]["epoch_srs"][e_idx]
+                    lines.append(f" {sr['mean']:.3f} ± {sr['std']:.3f}", end="")
+                else:
+                    lines.append(f" {'N/A':>15}", end="")
+            lines.append("")
+    lines.append("")
 
-    header = f"{'Task Type':<40}"
-    for m in available:
-        header += f" {m:>12}"
-    print(header)
-    print("-" * (40 + 13 * len(available)))
+    # Per-task-type analysis
+    lines.append("-" * 70)
+    lines.append("Per-Task-Type Success Rate (Final Epoch)")
+    lines.append("-" * 70)
 
-    for tt in all_types:
-        row = f"{tt:<40}"
-        for m in available:
-            last_epoch = results[m]["epochs"][-1]
-            sr = last_epoch["per_task_type_sr"].get(tt, float("nan"))
-            row += f" {sr:>12.3f}"
-        print(row)
+    if methods and methods[0] in all_results and "per_task_type_sr" in all_results[methods[0]]:
+        task_types = sorted(all_results[methods[0]]["per_task_type_sr"].keys())
+        lines.append(f"{'Task Type':<35}", end="")
+        for method in methods:
+            if method in all_results:
+                lines.append(f" {method:>12}", end="")
+        lines.append("")
+        lines.append("-" * 70)
 
-    # Improvement analysis
-    if "memrl" in results and "task_memrl" in results:
-        print("\n--- TaskMemRL vs MemRL Improvement ---")
-        memrl_final = results["memrl"]["summary"]["final_sr"]
-        task_final = results["task_memrl"]["summary"]["final_sr"]
-        diff = task_final - memrl_final
-        print(f"  Final SR: MemRL={memrl_final:.3f}, TaskMemRL={task_final:.3f}, Delta={diff:+.3f}")
+        for tt in task_types:
+            short_name = tt.replace("pick_", "").replace("_then_place_in_recep", "").replace("_and_place", "+")
+            lines.append(f"{short_name:<35}", end="")
+            for method in methods:
+                if method in all_results and tt in all_results[method]["per_task_type_sr"]:
+                    sr = all_results[method]["per_task_type_sr"][tt]
+                    lines.append(f" {sr['mean']:.3f}±{sr['std']:.3f}", end="")
+                else:
+                    lines.append(f" {'N/A':>12}", end="")
+            lines.append("")
+    lines.append("")
 
-        memrl_csr = results["memrl"]["summary"]["csr"]
-        task_csr = results["task_memrl"]["summary"]["csr"]
-        diff_csr = task_csr - memrl_csr
-        print(f"  CSR:      MemRL={memrl_csr:.3f}, TaskMemRL={task_csr:.3f}, Delta={diff_csr:+.3f}")
+    # Statistical significance: TaskMemRL vs MemRL
+    lines.append("=" * 70)
+    lines.append("Statistical Significance Analysis")
+    lines.append("=" * 70)
 
-        # Per-task-type comparison
-        memrl_tt = results["memrl"]["epochs"][-1]["per_task_type_sr"]
-        task_tt = results["task_memrl"]["epochs"][-1]["per_task_type_sr"]
-        print("\n  Per-task-type deltas:")
-        for tt in sorted(set(memrl_tt) | set(task_tt)):
-            m_sr = memrl_tt.get(tt, 0.0)
-            t_sr = task_tt.get(tt, 0.0)
-            delta = t_sr - m_sr
-            marker = " ***" if abs(delta) > 0.05 else ""
-            print(f"    {tt:<40} MemRL={m_sr:.3f} TaskMemRL={t_sr:.3f} Delta={delta:+.3f}{marker}")
+    if "memrl" in all_results and "task_memrl" in all_results:
+        ttest_result = perform_ttest("task_memrl", all_results["task_memrl"],
+                                     "memrl", all_results["memrl"])
+        lines.append(f"\nTaskMemRL vs MemRL (Paired t-test):")
+        lines.append(f"  Mean difference: {ttest_result['mean_diff']:+.4f}")
+        lines.append(f"  t-statistic: {ttest_result['t_statistic']:.4f}")
+        lines.append(f"  p-value: {ttest_result['p_value']:.6f}")
+        lines.append(f"  Cohen's d: {ttest_result['cohens_d']:.4f}")
+        lines.append(f"  Significant (p < 0.05): {ttest_result['significant_005']}")
+        lines.append(f"  Significant (p < 0.01): {ttest_result['significant_001']}")
 
-    # Token efficiency
-    if len(available) > 1:
-        print("\n--- Token Efficiency ---")
-        for m in available:
-            s = results[m]["summary"]
-            total_tasks = sum(e["num_tasks"] for e in results[m]["epochs"])
-            tokens_per_task = s["total_api_tokens"] / total_tasks if total_tasks else 0
-            print(f"  {m:<15}: {tokens_per_task:,.0f} tokens/task (total: {s['total_api_tokens']:,})")
+        if ttest_result['significant_005']:
+            lines.append("\n  ✓ TaskMemRL is significantly better than MemRL (p < 0.05)")
+        else:
+            lines.append("\n  ✗ No significant difference (p >= 0.05)")
+
+    return "\n".join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Aggregate and analyze multi-seed results")
+    parser.add_argument("--output-dir", type=str, default="outputs/alfworld/multiseed_v2",
+                        help="Output directory containing seed_* subdirectories")
+    parser.add_argument("--seeds", nargs="+", type=int, default=[42, 123, 456],
+                        help="Seed values to aggregate")
+    parser.add_argument("--methods", nargs="+", default=["no_memory", "rag", "memrl", "task_memrl"],
+                        help="Methods to analyze")
+    parser.add_argument("--epochs", type=int, default=5,
+                        help="Number of epochs")
+    args = parser.parse_args()
+
+    output_dir = Path(args.output_dir)
+
+    print(f"Loading results from {output_dir}...")
+    all_results = load_seed_results(output_dir, args.seeds, args.methods)
+
+    # Aggregate
+    aggregated = {}
+    for method in args.methods:
+        if all_results[method]:
+            aggregated[method] = aggregate_method(all_results[method], args.epochs)
+            print(f"  {method}: {len(all_results[method])} seeds")
+
+    # Save aggregated JSON
+    agg_file = output_dir / "aggregated_results.json"
+    # Convert numpy types
+    json.dump(aggregated, open(agg_file, "w"), indent=2, default=float)
+    print(f"\nAggregated results saved to {agg_file}")
+
+    # Generate and print report
+    report = generate_report(aggregated, args.methods, args.seeds)
+    print("\n" + report)
+
+    # Save report
+    report_file = output_dir / "analysis_report.txt"
+    Path(report_file).write_text(report)
+    print(f"\nReport saved to {report_file}")
+
+    return 0
 
 
 if __name__ == "__main__":
-    output_dir = sys.argv[1] if len(sys.argv) > 1 else "outputs/alfworld"
-    results = load_results(output_dir)
-    print_comparison(results)
+    sys.exit(main())

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -167,16 +168,36 @@ def run_epoch(
     method: str,
     epoch: int,
     max_tasks: Optional[int] = None,
+    seed: int = 42,
+    custom_order: Optional[List[int]] = None,
     **kwargs,
 ) -> EpochResult:
-    """Run one epoch over all tasks."""
-    num_games = env.num_games
-    if max_tasks and max_tasks < num_games:
-        num_games = max_tasks
+    """Run one epoch over all tasks.
+
+    The seed controls task ordering: different seeds produce different shuffled
+    orderings of the game files, so when max_tasks < total games, each seed
+    samples a different subset of tasks.
+
+    If custom_order is provided, it overrides seed-based shuffling and uses
+    the explicit list of game indices for this epoch.
+    """
+    if custom_order is not None:
+        indices = custom_order
+        num_games = len(indices)
+    else:
+        num_games = env.num_games
+        # Create a shuffled ordering based on seed + epoch
+        indices = list(range(num_games))
+        rng = random.Random(seed + epoch)
+        rng.shuffle(indices)
+
+        if max_tasks and max_tasks < num_games:
+            indices = indices[:max_tasks]
+            num_games = max_tasks
 
     epoch_result = EpochResult(epoch=epoch, method=method)
 
-    for i in range(num_games):
+    for i, game_idx in enumerate(indices):
         log.info(f"  Epoch {epoch} | Task {i+1}/{num_games}")
         try:
             result = run_episode(env, agent, memory_bank, embedder, method, **kwargs)
@@ -207,6 +228,7 @@ def run_experiment(
     k2: int = 3,
     seed: int = 42,
     output_dir: str = "outputs/alfworld",
+    custom_epoch_orders: Optional[List[List[int]]] = None,
 ) -> Dict:
     """Run full experiment for one method."""
     from experiments.alfworld.alfworld_env import ALFWorldEnv
@@ -229,9 +251,13 @@ def run_experiment(
 
     for epoch in range(1, num_epochs + 1):
         log.info(f"=== Epoch {epoch}/{num_epochs} ===")
+        custom_order = None
+        if custom_epoch_orders and (epoch - 1) < len(custom_epoch_orders):
+            custom_order = custom_epoch_orders[epoch - 1]
         epoch_result = run_epoch(
             env, agent, memory_bank, embedder, method,
-            epoch=epoch, max_tasks=max_tasks,
+            epoch=epoch, max_tasks=max_tasks, seed=seed,
+            custom_order=custom_order,
             alpha=alpha, lam=lam, delta=delta, k1=k1, k2=k2,
         )
         all_epochs.append(epoch_result)

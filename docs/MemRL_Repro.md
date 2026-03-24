@@ -48,7 +48,7 @@ Q(intent, experience) \rightarrow Q(intent, experience, task\_type)
 ### 4.1 直接运行对比实验
 
 ```bash
-cd /home/user/lvhuanzhu/AutoEvolve
+cd <project_root>
 python scripts/memrl/run_memrl_comparison.py --steps 6000 --eval-episodes 1200 --seed 42
 ```
 
@@ -59,7 +59,7 @@ python scripts/memrl/run_memrl_comparison.py --steps 6000 --eval-episodes 1200 -
 ### 4.2 运行测试
 
 ```bash
-cd /home/user/lvhuanzhu/AutoEvolve
+cd <project_root>
 python -m pytest -q tests/memrl/test_memrl_smoke.py
 ```
 

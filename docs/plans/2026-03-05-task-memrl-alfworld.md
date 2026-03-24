@@ -4,12 +4,12 @@
 
 **Goal:** Validate that task-specific Q-values Q(intent, experience, task_type) outperform global Q-values Q(intent, experience) on the ALFWorld benchmark with 6 distinct task types.
 
-**Architecture:** Implement the full MemRL pipeline (Intent-Experience-Utility triplets + Two-Phase Retrieval) on ALFWorld using DeepSeek V3 as backbone LLM and local BGE embeddings. Compare 4 methods: No Memory, RAG, MemRL (global Q), TaskMemRL (task-specific Q). The only difference between MemRL and TaskMemRL is whether Q-values are maintained per-task-type or globally.
+**Architecture:** Implement the full MemRL pipeline (Intent-Experience-Utility triplets + Two-Phase Retrieval) on ALFWorld using configurable LLM backend and local BGE embeddings. Compare 4 methods: No Memory, RAG, MemRL (global Q), TaskMemRL (task-specific Q). The only difference between MemRL and TaskMemRL is whether Q-values are maintained per-task-type or globally.
 
 **Tech Stack:** Python 3.13, OpenAI SDK (Volcengine-compatible), transformers (local BGE embedding), ALFWorld 0.4.2, numpy, json
 
 **Environment:**
-- ALFWORLD_DATA=/home/user/alfworld_data
+- Set `ALFWORLD_DATA` environment variable to your ALFWorld data directory
 - .env at project root with ARK_API_KEY, ARK_MODEL, ARK_BASE_URL
 - TextWorld patched for Python 3.13 compatibility
 
