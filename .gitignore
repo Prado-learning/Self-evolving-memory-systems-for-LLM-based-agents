@@ -61,8 +61,21 @@ experiments/results/*.pt
 *.toc
 *.pdf
 
-# 但保留论文中的PDF图表
-!papers/**/figs/*.pdf
+# 排除敏感和不需要的内容
+PPT_Materials/
+papers/
+presentation/
+outputs/
+PPT_AgenticMemory.md
+流程图文档.md
+PPT大纲.md
+答辩材料_Memory_RL_研究.md
+.env
+llm_client.py
+vllm_client.py
+
+# 排除 plans
+docs/plans/
 
 # 大文件
 *.ttf

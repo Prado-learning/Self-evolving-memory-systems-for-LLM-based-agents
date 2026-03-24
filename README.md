@@ -27,17 +27,16 @@
 AutoEvolve/
 ├── README.md                      # 本文件
 ├── requirements.txt                # Python依赖
+├── .gitignore                    # Git忽略配置
 ├── docs/                          # 文档
-│   ├── MemRL_Repro.md             # MemRL复现说明与创新点
-│   ├── comparison_analysis.md      # 四篇论文对比分析
-│   └── plans/                     # 实现计划
-│       └── 2026-03-05-task-memrl-alfworld.md
+│   ├── MemRL_Repro.md            # MemRL复现说明与创新点
+│   └── comparison_analysis.md      # 四篇论文对比分析
 ├── src/                           # 源代码
 │   └── simple/                    # 简化实现
 │       ├── agentevolve.py         # AgentEvolver复现
 │       └── memevolve.py           # MemEvolve复现
 ├── experiments/                   # 实验实现
-│   ├── memrl/                     # MemRL核心机制
+│   ├── memrl/                    # MemRL核心机制
 │   │   └── memrl_core.py         # Toy环境验证
 │   └── alfworld/                  # ALFWorld真实环境实验
 │       ├── memory_bank.py         # 双套Q-value记忆银行
@@ -50,9 +49,12 @@ AutoEvolve/
 │   │   └── run_memrl_comparison.py
 │   └── alfworld/                  # ALFWorld脚本
 │       ├── run_experiment.py      # 单实验
-│       ├── run_comparison.sh      # 批量对比
+│       ├── run_comparison.sh     # 批量对比
 │       ├── analyze_results.py     # 统计分析
-│       └── plot_final_results.py  # 可视化
+│       ├── plot_results.py        # 结果可视化
+│       ├── plot_final_results.py # 最终可视化
+│       ├── run_multiseed.py     # 多seed实验
+│       └── run_new_orders.py     # 自定义顺序实验
 └── tests/                         # 单元测试
     ├── memrl/
     │   └── test_memrl_smoke.py
@@ -185,7 +187,6 @@ MemRL (怎么用记忆)
 
 - [MemRL复现说明](docs/MemRL_Repro.md) - Task-MemRL创新点详解
 - [论文对比分析](docs/comparison_analysis.md) - 四篇论文深度方法论对比
-- [实现计划](docs/plans/2026-03-05-task-memrl-alfworld.md) - ALFWorld实验技术路线
 
 ## 参考文献
 
